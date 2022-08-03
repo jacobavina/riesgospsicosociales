@@ -1,0 +1,319 @@
+---
+title: "Encuesta de Riesgos Psicosociales"
+output: html_document
+---
+
+# Introducción
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+# todo lo que vimos en el módulo 
+library(tidyverse)
+# para imprimir tablas con formato más bonito
+library(kableExtra)
+# una paleta de colores exótica
+library(wesanderson)
+```
+
+Durante el mes de marzo se aplicó el cuestionario de riesgos psicosociales elaborado por investigadores independientes en colaboración con el Sistema Municipal para el Desarrollo Integral de la Familia (SMDIF) y el Centro de Estudios Científicos y Tecnológicos de Tabasco (CECyTE) con el objetivo de conocer la situación psicosocial que presentan actualmente los adolescentes en el municipio de Centro.
+
+Para realizar el análisis de datos, el flujo de trabajo definido será el siguiente: lectura, limpieza, organización, manipulación y presentación de la información.
+
+## Los datos
+
+Tenemos respuestas a un cuestionario aplicado a estudiantes (observaciones) con las respuestas en las columnas (características o atributos). Algunas de las columnas caracterizan a los alumnos, mientras que otras responden a varias preguntas, algunas de ellas binarias (sí o no) y otras de opción múltiple. Ejemplos:
+
+```{r}
+ruta <- "data/raw/cuestionario_de_riesgos_psicosociales.csv"
+
+# read_csv() es la versión del tidyverse de read.csv
+cuestionario <- read_csv(ruta)
+
+colnames(cuestionario)[2:11]
+```
+
+Para conocer a la población se realiza un análisis exploratorio de datos, se ubican los valores faltantes (`NA`s), el tipo de datos, la calidad de estos, entre otros. 
+
+## Estadísticas descriptivas
+
+Podemos analizar las características de nuestra población, de acuerdo a diferentes criterios como a qué plantel pertenece, cuál es su sexo, su edad o su grado de estudios. 
+
+```{r}
+plantel <- cuestionario %>% 
+  group_by(`Selecciona tu plantel:`) %>% 
+  summarise(n = n()) %>% 
+  filter(str_detect(`Selecciona tu plantel:`, "CECyTE")) %>% 
+  mutate(`Selecciona tu plantel:` = str_extract(`Selecciona tu plantel:`, "No. [0-9]+"))
+
+plantel %>% 
+  ggplot(aes(x = `Selecciona tu plantel:`, y = n)) +
+  geom_col(fill = wes_palette("BottleRocket1", n = 1)) +
+   geom_text(aes(y = n, ymax = n, label = n),
+            position = position_stack(), size=3, vjust=2, hjust=0.5 ,col="white") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  xlab("Plantel") +
+  ylab("Número de estudiantes")
+
+planteles_centro <- cuestionario %>% 
+  filter(str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 07") | str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 11") | str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 12"))
+ 
+```
+
+Vemos que hay dos planteles que concentran la mayor cantidad de estudiantes que respondieron la encuesta, por lo que, no podemos generalizar nuestras conclusiones a toda la población, esto es uno de los posibles impedimentos a considerar. En nuestro caso nos enfocaremos únicamente en los planteles que pertenecen al muncipio de Centro (7, 11, 12 y 19). 
+
+Hay categorías que presentan información marginal que podemos excluir de nuestro análisis, pero en nuestro caso no lo haremos ya que pueden estar representando a un grupo de población minoritario.    
+
+```{r}
+sexo <- planteles_centro %>% 
+  group_by(`Selecciona tu sexo:`) %>% 
+  summarise(n = n()) %>% 
+  filter(`Selecciona tu sexo:` %in% c("Femenino", "Masculino", "No me identifico con ninguna de las 2 anteriores"))
+
+sexo %>% 
+  ggplot(aes(x = `Selecciona tu sexo:`, y = n)) +
+  geom_col(fill = wes_palette("BottleRocket1", n = 2)[2]) +
+  geom_text(aes(y = n, ymax = n, label = n)) +
+            #position = position_stack(), size=3, vjust=2, hjust=0.5 ,col="white")
+  theme_minimal() +
+  xlab("Sexo") +
+  ylab("Número de estudiantes")
+```
+
+Al inspeccionar la edad reportada nos encontramos con una serie de datos irregulares.
+
+```{r}
+unique(cuestionario$`Mi edad:`)[1:20]
+```
+
+Vemos la disparidad de respuestas para una misma edad (p.e., 15, 15 años, 15 años de edad, etc.). En este caso, extraemos solo los números de todas las respuestas para tener las categorías adecuadas para su uso y análisis.
+
+```{r}
+edad <- planteles_centro %>% 
+  group_by(`Mi edad:`) %>% 
+  mutate(`Mi edad:` = str_extract(`Mi edad:`, "[0-9]+"),
+         `Mi edad:` = as.integer(`Mi edad:`)) %>%
+  summarise(n = n()) %>% 
+  filter(`Mi edad:` >= 10,
+         `Mi edad:` <= 25)
+
+edad %>% 
+  ggplot(aes(x = `Mi edad:`, y = n)) +
+  geom_col(fill = wes_palette("BottleRocket1", n = 3)[3]) +
+  theme_minimal() +
+  xlab("Edad") +
+  ylab("Número de estudiantes")
+```
+
+## Hipótesis y pruebas
+
+Es importante que al analizar las respuestas se tengan presente los posibles controles a los que puede estar sujeta nuestra población: en este caso, la edad, el plantel, el sexo, si trabaja o no, etc., son factores que pueden influir en el estado de ánimo de los alumnos. 
+
+### Hipotésis 1
+
+Para probar la primera hipótesis nos enfocaremos en aquellos alumnos que hayan contestado sentir algún tipo de tristeza y su relación con el consumo de alcohol, para posteriormente comparar con aquellos que no se identifican con el sexo binario (hombre o mujer). 
+
+Utilizaremos la pregunta `En el último mes, has sentido de manera continua:`, creamos una variable booleana la cual será cierta si hay una coincidencia con la palabra `tristeza`.
+
+```{r}
+# columna auxiliar para emociones y booleana para identificar tristeza
+planteles_centro_plus <- planteles_centro %>% 
+  mutate(Emociones = str_to_lower(`En el último mes, has sentido de manera continua:`)) %>% 
+  mutate(Tristeza = str_detect(Emociones, "tristeza")) %>% 
+  mutate(Sexo = str_detect(`Selecciona tu sexo:`, "No me identifico con ninguna de las 2 anteriores"))
+```
+
+Algunas de las respuestas que nos interesan son:
+
+```{r}
+planteles_centro_plus %>% 
+  filter(Tristeza) %>% 
+  distinct(Emociones) %>% 
+  head(n = 10)
+```
+
+Ahora, a través de un cuadro comparativo cruzamos esto con las preguntas relacionadas con el consumo de alcohol: `Durante el mes pasado, ¿alguna vez tomaste alcohol como para sentirte borracho/a?`:
+
+```{r echo=TRUE}
+# Variable booleana para identificar si el estudiante se ha emborrachado.
+planteles_centro_plus <- planteles_centro_plus %>% 
+  mutate(Alcohol = if_else(`Durante el mes pasado, ¿alguna vez tomaste alcohol como para sentirte borracho/a?` == "Sí",
+                           TRUE, FALSE)) 
+```
+
+Observamos para ver si existe relación alguna entre el consumo de alcohol y sentimientos relacionados con la tristeza. Sin que esto implique que haya necesariamente una correlación directa entre ambas variables. 
+
+```{r}
+# Relación entre tristeza y alcohol.
+tabla <- planteles_centro_plus %>% 
+  group_by(Tristeza, Alcohol) %>% 
+  summarise(n = n()) %>% 
+  group_by(Tristeza, .drop = TRUE) %>% 
+  mutate(pct = n / sum(n) * 100)
+
+tabla %>% 
+  kable("pipe")
+```
+
+Vemos que, para alumnos que no han sentido algún tipo de tristeza, el `r tabla %>% filter(!Tristeza, Alcohol) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha consumido alcohol para emborracharse, mientras que el `r tabla %>% filter(Tristeza, Alcohol) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento de los alumnos que han sentido tristeza han consumido alcochol con el mismo propósito. 
+
+Adicionalmente, agregamos una variable más para ver si existe alguna relación con el sexo para el caso de aquellos alumnos que no se identifican con las opciones: hombre o mujer (es decir, quienes eligieron la respuesta `No me identifico con ninguna de las 2 anteriores`).
+
+```{r}
+# relación entre tristeza, alcohol y sexo cuando han sentido tristeza
+tabla2_1 <- planteles_centro_plus %>% 
+  filter(Tristeza) %>% 
+  group_by(Tristeza, Sexo,  Alcohol) %>% 
+  summarise(n = n()) %>% 
+  group_by(Tristeza, .drop = TRUE) %>% 
+  mutate(pct = n / sum(n) * 100)
+
+tabla2_1 %>% 
+  kable("pipe", caption = "Cuando han sentido tristeza")
+
+# relación entre tristeza, alcohol y sexo cuando no han sentido tristeza
+tabla2_2 <- planteles_centro_plus %>% 
+  filter(!Tristeza) %>% 
+  group_by(Tristeza, Sexo,  Alcohol) %>% 
+  summarise(n = n()) %>% 
+  group_by(Tristeza, .drop = TRUE) %>% 
+  mutate(pct = n / sum(n) * 100)
+
+tabla2_2 %>% 
+  kable("pipe", caption = "Cuando no han sentido tristeza")
+```
+Para este caso el tamaño de nuestra muestra es demasiado pequeño por lo que podríamos caer en conclusiones anticipadas. Lo que nos dicen los datos es que del grupo de problación que no se identifica como hombre o mujer el `r tabla2_1 %>% filter(Tristeza, !Alcohol, Sexo) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha sentido `tristeza`. Mientras que solo el `r tabla2_1 %>% filter(Tristeza, Alcohol, Sexo) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha sentido tristeza y ha consumido alcohol para emborracharse.
+
+De los alumnos que tomaron alcohol para emborracharse ninguno dijo haber sentido `tristeza`. 
+
+### Hipotésis 2
+
+Para la segunda hipótesis queremos ver cuántos de los alumnos que dijeron tener relaxiones sexuales no estuvieron de acuerdo con ello.
+
+Primero, queremos conocer la edad en la que nuestra población inició su vida sexual, para ello obtenemos los datos de la pregunta `¿A qué edad tuviste tu primera relación sexual?`:
+
+```{r}
+edad_sexual <- planteles_centro %>% 
+  group_by(`¿A qué edad tuviste tu primera relación sexual?`) %>% 
+  mutate(`¿A qué edad tuviste tu primera relación sexual?` = str_extract(`¿A qué edad tuviste tu primera relación sexual?`, "[0-9]+"),
+         `¿A qué edad tuviste tu primera relación sexual?` = as.integer(`¿A qué edad tuviste tu primera relación sexual?`)) %>%
+  summarise(n = n()) %>% 
+  filter(`¿A qué edad tuviste tu primera relación sexual?` >= 10,
+         `¿A qué edad tuviste tu primera relación sexual?` <= 25)
+
+edad_sexual %>% 
+  ggplot(aes(x = `¿A qué edad tuviste tu primera relación sexual?`, y = n)) +
+  geom_col(fill = wes_palette("BottleRocket1", n = 3)[3]) +
+  theme_minimal() +
+  xlab("Edad") +
+  ylab("Número de estudiantes")
+```
+Para probar la segunda hipótesis utilizaremos la pregunta `¿Haz tenido relaciones sexuales?` y haremos la comparación con `¿Estuviste de acuerdo en tener relaciones sexuales?`.Para estos casos nuestras respuestas son `Sí/No`, por lo que, transformaremos las variables a booleanas de manera directa.
+
+```{r}
+# Creamos las variable booleanas para saber si el alumno ha tenido relaciones.
+relaciones_sexuales <- planteles_centro %>%
+   mutate(Relaciones = if_else(`¿Haz tenido relaciones sexuales?` == "Sí",
+                           TRUE, FALSE)) %>% 
+# Y la variable booleana para saber si han sido consensuadas.
+   mutate(Consensuadas = if_else(`¿Estuviste de acuerdo en tener relaciones sexuales?` == "Sí",
+                           TRUE, FALSE)) 
+
+#relaciones_sexuales_isna <- relaciones_sexuales %>% drop_na
+```
+
+
+```{r}
+tabla3 <- relaciones_sexuales %>% 
+  group_by(Relaciones, Consensuadas) %>% 
+  summarise(n = n()) %>% 
+  group_by(Relaciones, .drop = TRUE) %>% 
+  mutate(pct = n / sum(n) * 100)
+
+tabla3 %>% 
+  kable("pipe")
+```
+
+En nuestra tabla comparativa podemos observar que de los alumnos que dicen haber tenido relaciones sexuales, el `r tabla3 %>% filter(Relaciones, !Consensuadas) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento dijo no haber estado de acuerdo con ello.
+
+### Hipótesis 3
+
+Cuántos alumnos contestaron haber consumido drogas y cuál es su edad
+
+```{r}
+#filtramos el cuestionario con las observaciones de aquellos que han consumido droga
+drogas_consumo <- planteles_centro %>% 
+  mutate(Drogas = if_else(`¿Alguna vez en tu vida, has consumido alguna droga?` == "Sí",
+                           TRUE, FALSE)) %>% 
+  filter(Drogas, TRUE)
+
+#creamos una variable para saber la edad de aquellos que han consumido droga
+edad_consumo <- drogas_consumo %>%
+  group_by(`Mi edad:`) %>% 
+  mutate(`Mi edad:` = str_extract(`Mi edad:`, "[0-9]+"),
+         `Mi edad:` = as.integer(`Mi edad:`)) %>%
+  summarise(n = n()) %>% 
+  filter(`Mi edad:` >= 10,
+         `Mi edad:` <= 25)
+
+
+edad_consumo %>% 
+  ggplot(aes(x = `Mi edad:`, y = n)) +
+  geom_col(fill = wes_palette("BottleRocket1", n = 3)[3]) +
+  theme_minimal() +
+  xlab("Edad") +
+  ylab("Número de estudiantes")
+```
+
+
+```{r}
+# creamos una variable que incluya la marihuana y limpiamos los valores NA de esa columna
+drogas_marihuana <- drogas_consumo%>%
+  mutate(Sustancias = str_to_lower(`Que sustencia has consumido:`)) %>%
+  mutate(Marihuana = str_detect(Sustancias, "marihuana"))
+```
+
+Algunas de las respuestas que nos interesan son:
+
+```{r}
+# creamos un listado de sustancias consumidas que incluyan la marihuana
+drogas_marihuana %>% 
+  filter(Marihuana) %>% 
+  distinct(Sustancias) %>% 
+  head(n = 10)
+```
+
+Para hacer la distinción 
+
+```{r}
+tabla4 <- drogas_marihuana %>% 
+  group_by(Drogas, Marihuana) %>% 
+  summarise(n = n()) %>% 
+  group_by(Drogas, .drop = TRUE) %>% 
+  mutate(pct = n / sum(n) * 100)
+
+tabla4 %>% 
+  kable("pipe")
+```
+```{r}
+# creamos una variable que incluya la marihuana y limpiamos los valores NA de esa columna
+drogas_cocaina <- drogas_marihuana %>%
+  mutate(Sustancias = str_to_lower(`Que sustencia has consumido:`)) %>%
+  mutate(Cocaina = str_detect(Sustancias, "cocaína"))
+```
+
+```{r}
+tabla4 <- drogas_cocaina %>% 
+  group_by(Drogas, Marihuana, Cocaina) %>% 
+  summarise(n = n()) %>% 
+  group_by(Drogas, .drop = TRUE) %>% 
+  mutate(pct = n / sum(n) * 100)
+
+tabla4 %>% 
+  kable("pipe")
+```
+
+
+## Conclusiones
+
+Como primer ejercicio no podemos tener conclusiones definitivas, sino únicamente de valor analítico para comprender el universo de información del que disponemos. Sin embargo, para elaborar conclusiones serias se debe trabajar de la mano de expertos en la materia con quienes se pueda seguir realizando pruebas y elaborando hipótesis. 

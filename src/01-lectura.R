@@ -63,11 +63,11 @@ planteles_centro %>%
 
 #### ¿Cuántos hombres y mujeres participaron en Centro?
 
-factor2 <- factor(planteles_centro$Sexo)
+factor2 <- factor(planteles_centro$selecciona_tu_sexo)
 table(factor2)
 
 #### ¿Cuál es la edad de los participantes?
 
-factor3 <- factor(planteles_centro$Edad)
+factor3 <- factor(planteles_centro$mi_edad)
 table(factor3)
 
