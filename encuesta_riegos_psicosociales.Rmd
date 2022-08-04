@@ -152,7 +152,7 @@ tabla <- planteles_centro_plus %>%
   mutate(pct = n / sum(n) * 100)
 
 tabla %>% 
-  kable("pipe")
+  kable("pipe", caption = "Tabla 1")
 ```
 
 Vemos que, para alumnos que no han sentido algún tipo de tristeza, el `r tabla %>% filter(!Tristeza, Alcohol) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha consumido alcohol para emborracharse, mientras que el `r tabla %>% filter(Tristeza, Alcohol) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento de los alumnos que han sentido tristeza han consumido alcochol con el mismo propósito. 
@@ -161,30 +161,17 @@ Adicionalmente, agregamos una variable más para ver si existe alguna relación 
 
 ```{r}
 # relación entre tristeza, alcohol y sexo cuando han sentido tristeza
-tabla2_1 <- planteles_centro_plus %>% 
-  filter(Tristeza) %>% 
-  group_by(Tristeza, Sexo,  Alcohol) %>% 
+tabla2 <- planteles_centro_plus %>% 
+  group_by(Sexo, Tristeza, Alcohol) %>% 
+  filter(Sexo) %>% 
   summarise(n = n()) %>% 
-  group_by(Tristeza, .drop = TRUE) %>% 
+  group_by(Sexo, .drop = TRUE) %>% 
   mutate(pct = n / sum(n) * 100)
 
-tabla2_1 %>% 
-  kable("pipe", caption = "Cuando han sentido tristeza")
-
-# relación entre tristeza, alcohol y sexo cuando no han sentido tristeza
-tabla2_2 <- planteles_centro_plus %>% 
-  filter(!Tristeza) %>% 
-  group_by(Tristeza, Sexo,  Alcohol) %>% 
-  summarise(n = n()) %>% 
-  group_by(Tristeza, .drop = TRUE) %>% 
-  mutate(pct = n / sum(n) * 100)
-
-tabla2_2 %>% 
-  kable("pipe", caption = "Cuando no han sentido tristeza")
+tabla2 %>% 
+  kable("pipe", caption = "Tabla 2")
 ```
-Para este caso el tamaño de nuestra muestra es demasiado pequeño por lo que podríamos caer en conclusiones anticipadas. Lo que nos dicen los datos es que del grupo de problación que no se identifica como hombre o mujer el `r tabla2_1 %>% filter(Tristeza, !Alcohol, Sexo) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha sentido `tristeza`. Mientras que solo el `r tabla2_1 %>% filter(Tristeza, Alcohol, Sexo) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha sentido tristeza y ha consumido alcohol para emborracharse.
-
-De los alumnos que tomaron alcohol para emborracharse ninguno dijo haber sentido `tristeza`. 
+Para este caso el tamaño de nuestra muestra es demasiado pequeño por lo que podríamos caer en conclusiones anticipadas. Lo que nos dicen los datos es que el `r tabla2 %>% filter(Sexo, Tristeza, Alcohol) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha sentido `tristeza` y ha consumido alcohol para emborracharse. Mientras que el `r tabla2 %>% filter(Sexo, Tristeza, !Alcohol) %>% data.frame() %>% select(pct) %>% unlist() %>% round(digits = 2)` por ciento ha sentido tristeza, pero no ha consumido alcohol para emborracharse. De aquellos que no dijeron sentir tristeza, ninguno respondió haber consumido alcohol para emborracharse.
 
 ### Hipotésis 2
 
