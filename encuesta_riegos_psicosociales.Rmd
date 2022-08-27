@@ -62,6 +62,31 @@ planteles_centro <- cuestionario %>%
 
 Vemos que hay dos planteles que concentran la mayor cantidad de estudiantes que respondieron la encuesta, por lo que, no podemos generalizar nuestras conclusiones a toda la población, esto es uno de los posibles impedimentos a considerar. En nuestro caso nos enfocaremos únicamente en los planteles que pertenecen al muncipio de Centro (7, 11, 12 y 19). 
 
+```{r}
+# plantel <- cuestionario %>% 
+#   group_by(`Selecciona tu plantel:`) %>% 
+#   summarise(n = n()) %>% 
+#   filter(str_detect(`Selecciona tu plantel:`, "CECyTE")) %>% 
+#   mutate(`Selecciona tu plantel:` = str_extract(`Selecciona tu plantel:`, "No. [0-9]+"))
+
+planteles_centro_grafica <- cuestionario %>% 
+  group_by(`Selecciona tu plantel:`) %>% 
+  filter(str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 07") | str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 11") | str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 12")) %>%   summarise(n = n()) %>% 
+  mutate(`Selecciona tu plantel:` = str_extract(`Selecciona tu plantel:`, "No. [0-9]+"))
+
+planteles_centro_grafica %>% 
+  ggplot(aes(x = `Selecciona tu plantel:`, y = n)) +
+  geom_col(fill = wes_palette("BottleRocket1", n = 1)) +
+   geom_text(aes(y = n, ymax = n, label = n),
+            position = position_stack(), size=3, vjust=2, hjust=0.5 ,col="white") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  xlab("Plantel") +
+  ylab("Número de estudiantes")
+ 
+```
+
+
 Hay categorías que presentan información marginal que podemos excluir de nuestro análisis, pero en nuestro caso no lo haremos ya que pueden estar representando a un grupo de población minoritario.    
 
 ```{r}
@@ -73,8 +98,8 @@ sexo <- planteles_centro %>%
 sexo %>% 
   ggplot(aes(x = `Selecciona tu sexo:`, y = n)) +
   geom_col(fill = wes_palette("BottleRocket1", n = 2)[2]) +
-  geom_text(aes(y = n, ymax = n, label = n)) +
-            #position = position_stack(), size=3, vjust=2, hjust=0.5 ,col="white")
+  geom_text(aes(y = n, ymax = n, label = n),
+            position = position_stack(), size=3, vjust = -1, hjust=0.5 ,col="black") +
   theme_minimal() +
   xlab("Sexo") +
   ylab("Número de estudiantes")
