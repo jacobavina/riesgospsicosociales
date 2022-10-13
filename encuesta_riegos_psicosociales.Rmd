@@ -1,6 +1,12 @@
 ---
 title: "Encuesta de Riesgos Psicosociales"
-output: html_document
+author: "Jacob Aviña"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    fig_caption: true
+    theme: flatly
 ---
 
 # Introducción
@@ -13,6 +19,8 @@ library(tidyverse)
 library(kableExtra)
 # una paleta de colores exótica
 library(wesanderson)
+#bbc style
+library(bbplot)
 ```
 
 Durante el mes de marzo se aplicó el cuestionario de riesgos psicosociales elaborado por investigadores independientes en colaboración con el Sistema Municipal para el Desarrollo Integral de la Familia (SMDIF) y el Centro de Estudios Científicos y Tecnológicos de Tabasco (CECyTE) con el objetivo de conocer la situación psicosocial que presentan actualmente los adolescentes en el municipio de Centro.
@@ -53,7 +61,9 @@ plantel %>%
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Plantel") +
-  ylab("Número de estudiantes")
+  ylab("Número de estudiantes") +
+  bbc_style() +
+   geom_hline(yintercept = 0, size = 1, colour="#333333")
 
 planteles_centro <- cuestionario %>% 
   filter(str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 07") | str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 11") | str_detect(`Selecciona tu plantel:`, "CECyTE Plantel No. 12"))
@@ -82,7 +92,9 @@ planteles_centro_grafica %>%
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
   xlab("Plantel") +
-  ylab("Número de estudiantes")
+  ylab("Número de estudiantes") +
+  bbc_style() +
+   geom_hline(yintercept = 0, size = 1, colour="#333333")
  
 ```
 
@@ -102,7 +114,9 @@ sexo %>%
             position = position_stack(), size=3, vjust = -1, hjust=0.5 ,col="black") +
   theme_minimal() +
   xlab("Sexo") +
-  ylab("Número de estudiantes")
+  ylab("Número de estudiantes") +
+  bbc_style() +
+   geom_hline(yintercept = 0, size = 1, colour="#333333")
 ```
 
 Al inspeccionar la edad reportada nos encontramos con una serie de datos irregulares.
@@ -127,7 +141,9 @@ edad %>%
   geom_col(fill = wes_palette("BottleRocket1", n = 3)[3]) +
   theme_minimal() +
   xlab("Edad") +
-  ylab("Número de estudiantes")
+  ylab("Número de estudiantes") +
+    bbc_style() +
+   geom_hline(yintercept = 0, size = 1, colour="#333333")
 ```
 
 ## Hipótesis y pruebas
@@ -218,7 +234,9 @@ edad_sexual %>%
   geom_col(fill = wes_palette("BottleRocket1", n = 3)[3]) +
   theme_minimal() +
   xlab("Edad") +
-  ylab("Número de estudiantes")
+  ylab("Número de estudiantes") +
+    bbc_style() +
+   geom_hline(yintercept = 0, size = 1, colour="#333333")
 ```
 Para probar la segunda hipótesis utilizaremos la pregunta `¿Haz tenido relaciones sexuales?` y haremos la comparación con `¿Estuviste de acuerdo en tener relaciones sexuales?`.Para estos casos nuestras respuestas son `Sí/No`, por lo que, transformaremos las variables a booleanas de manera directa.
 
@@ -274,7 +292,9 @@ edad_consumo %>%
   geom_col(fill = wes_palette("BottleRocket1", n = 3)[3]) +
   theme_minimal() +
   xlab("Edad") +
-  ylab("Número de estudiantes")
+  ylab("Número de estudiantes") +
+    bbc_style() +
+   geom_hline(yintercept = 0, size = 1, colour="#333333")
 ```
 
 
@@ -326,6 +346,6 @@ tabla4 %>%
 ```
 
 
-## Conclusiones
+# Conclusiones
 
 Como primer ejercicio no podemos tener conclusiones definitivas, sino únicamente de valor analítico para comprender el universo de información del que disponemos. Sin embargo, para elaborar conclusiones serias se debe trabajar de la mano de expertos en la materia con quienes se pueda seguir realizando pruebas y elaborando hipótesis. 
